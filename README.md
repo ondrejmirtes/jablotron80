@@ -1,5 +1,12 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
+Not to myself: When updating the Git repository in Home Assistant, do this after fetching and merging the changes:
+
+```bash
+mv custom_components/jablotron80/* .
+rm -rf custom_components
+```
+
 # jablotron80
 Home Assistant custom component for JABLOTRON 80 alarm system
 
