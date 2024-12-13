@@ -808,6 +808,7 @@ class JablotronConnection():
 
 			except Exception:
 				LOGGER.exception('Unexpected error: %s')
+				self.reconnect()
 		self.disconnect()
 
 	def read_until_found(self, prefix: str, max_records: int = 10) -> bool:
@@ -885,15 +886,11 @@ class JablotronConnectionSerial(JablotronConnection):
 											bytesize=serial.EIGHTBITS,
 											dsrdtr=True,# stopbits=serial.STOPBITS_ONE
 											timeout=1)
+				LOGGER.info("Connection established successfully.")
 			except serial.SerialException as ex:
-				if "timed out" in f'{ex}':
-					LOGGER.info('Timeout, retrying')
-				elif "Connection refused" in f'{ex}':
-					LOGGER.info('Connection refused by remote serial host, retrying')
-				elif "unreachable" in f'{ex}':
-					LOGGER.info('Remote serial host is currently unreachable, retrying')
-				else:
-					raise
+				LOGGER.warning(f"Connection failed: {ex}. Retrying in 5 seconds...")
+				time.sleep(5)
+
 
 	def _read_data(self, max_package_sections: int =15)->List[bytearray]:
 		ret_val = []
