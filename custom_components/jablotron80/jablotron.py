@@ -2139,7 +2139,8 @@ class JA80CentralUnit(object):
 			if detail == 0x00:
 				# don't send query if we already have "triggered detector" displayed
 				if activity_name not in self.statustext.message or activity_name == self.statustext.message:
-					self._send_device_query()				
+					#self._send_device_query()
+					pass
 				else:
 					log = False
 			else:
@@ -2164,8 +2165,9 @@ class JA80CentralUnit(object):
 			activity_name = 'Triggered detector (multiple)'
 			# multiple things are active
 			if detail == 0x00:
+				pass
 				# no details... ask..
-				self._send_device_query()				
+				#self._send_device_query()
 			else:
 				self._activate_source(detail)
 				self._confirm_device_query()
@@ -2572,6 +2574,8 @@ class JA80CentralUnit(object):
 	def send_keypress_sequence(self, key_sequence: str, accepted_prefix: bytes, complete_prefix: bytes = None) -> None:
 
 		value = b''
+
+		LOGGER.warning(f'Pressing keys: {key_sequence}')
 
 		if JablotronSettings.HIDE_KEY_PRESS:
 			name = "*HIDDEN*"

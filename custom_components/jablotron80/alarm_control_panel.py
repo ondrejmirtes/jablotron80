@@ -95,6 +95,9 @@ class Jablotron80AlarmControl(JablotronEntity,AlarmControlPanelEntity):
 			return True
 
 	async def async_alarm_disarm(self, code=None) -> None:
+		if self.alarm_state == AlarmControlPanelState.DISARMED:
+			return
+
 		if not self.code_disarm_required :
 			code = self._cu._master_code
 		if code == None:
