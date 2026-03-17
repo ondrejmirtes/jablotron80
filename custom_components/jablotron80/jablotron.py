@@ -14,7 +14,7 @@ from custom_components.jablotron80.const import DEVICE_CONTROL_PANEL
 LOGGER = logging.getLogger(__package__)
 expected_warning_level = logging.WARN
 verbose_connection_logging = False
-_loop = None # global variable to store event loop
+_loop: asyncio.AbstractEventLoop = None # event loop reference, set during initialize()
 
 
 from typing import Any, Dict, Optional, Union,Callable
@@ -85,11 +85,11 @@ def log_change(func):
 						LOGGER.debug(f'{args[0].__class__.__name__}({_id}): {var_name} changed from {prev} to {cur}')
 					else:
 						LOGGER.info(f'{args[0].__class__.__name__}({_id}): {var_name} changed from {prev} to {cur}')
-				if hasattr(args[0],"publish_updates"):
+				if hasattr(args[0],"publish_updates") and _loop is not None:
 					update_op = getattr(args[0], "publish_updates", None)
 					if callable(update_op):
 						LOGGER.debug("publishing updates")
-						asyncio.get_event_loop().create_task(update_op())
+						_loop.call_soon_threadsafe(_loop.create_task, update_op())
 	return wrapper
 
 def format_packet(data):
@@ -1479,10 +1479,10 @@ class JA80CentralUnit(object):
 		LOGGER.info("initializing")
 		if not self._hass is None:
 			self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
-		_loop = asyncio.get_event_loop()
+		_loop = asyncio.get_running_loop()
 		_loop.create_task(self.processing_loop())
-		io_pool_exc = ThreadPoolExecutor(max_workers=1)
-		_loop.run_in_executor(io_pool_exc, self._connection.read_send_packet_loop)
+		self._io_executor = ThreadPoolExecutor(max_workers=1)
+		_loop.run_in_executor(self._io_executor, self._connection.read_send_packet_loop)
 		await asyncio.wait_for(self._havestate.wait(), 20)
 		LOGGER.info(f"initialization done.")
 
@@ -1603,8 +1603,9 @@ class JA80CentralUnit(object):
 	
 	def update_options(self,options: Dict[str, Any] = None) -> None:
 		self._options = options
-		for zone in self._zones.values():
-			asyncio.get_event_loop().create_task(zone.publish_updates())
+		if _loop is not None:
+			for zone in self._zones.values():
+				_loop.call_soon_threadsafe(_loop.create_task, zone.publish_updates())
 	
 	@property    
 	def mode(self) -> int:
