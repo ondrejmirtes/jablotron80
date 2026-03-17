@@ -246,7 +246,7 @@ class Jablotron80AlarmControl(JablotronEntity,AlarmControlPanelEntity):
 
 	@property
 	def device_info(self) -> Optional[Dict[str, Any]]:
-		info = {"identifiers": {(DOMAIN, f'jablotron_panel_{self._main_zone}')},
+		info = {"identifiers": {(DOMAIN, f'{self._cu.serial_port}_panel_{self._main_zone}')},
 			"name": "jablotron panel",
 			"via_device": (DOMAIN, self._cu.serial_port)}
 		info["model"] = "Home Assistant control panel"
