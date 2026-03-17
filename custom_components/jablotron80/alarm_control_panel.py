@@ -231,7 +231,7 @@ class Jablotron80AlarmControl(JablotronEntity,AlarmControlPanelEntity):
 		elif zone.status == JablotronZone.STATUS_DISARMING:
 			return AlarmControlPanelState.DISARMING
 
-		return AlarmControlPanelState.UNKOWN
+		return None
 
 	@property
 	def should_poll(self) -> bool:
