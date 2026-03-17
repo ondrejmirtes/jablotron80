@@ -823,7 +823,7 @@ class JablotronConnection():
 #					time.sleep(JablotronSettings.SERIAL_SLEEP_NO_COMMAND)
 
 			except Exception:
-				LOGGER.exception('Unexpected error: %s')
+				LOGGER.exception('Unexpected error in read_send_packet_loop')
 				self.reconnect()
 		self.disconnect()
 
