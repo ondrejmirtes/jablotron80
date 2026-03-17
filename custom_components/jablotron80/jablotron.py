@@ -742,7 +742,7 @@ class JablotronConnection():
 	def read_send_packet_loop(self) -> None:
 		# keep reading bytes untill 0xff which indicates end of packet
 		LOGGER.debug('Loop endlessly reading serial')
-		while not self._stop.is_set() or self._cmd_q.unfinished_tasks > 0:
+		while not self._stop.is_set():
 			try:
 				if not self.is_connected():
 					LOGGER.error('Not connected to JA80, abort')
@@ -2616,6 +2616,8 @@ class JA80CentralUnit(object):
 	def shutdown(self) -> None:
 		self._connection.shutdown()
 		self._stop.set()
+		if hasattr(self, '_io_executor'):
+			self._io_executor.shutdown(wait=False)
 
 
 	def arm(self,code: str,zone:str=None) -> None:

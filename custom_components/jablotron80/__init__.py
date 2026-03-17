@@ -53,16 +53,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    # This is called when an entry/configured device is to be removed. The class
-    # needs to unload itself, and remove callbacks. See the classes for further
-    # details
-    options_update_unsubscriber = hass.data[DOMAIN][entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
-    options_update_unsubscriber()
-    cu = hass.data[DOMAIN][entry.entry_id][DATA_JABLOTRON]
-    cu.shutdown()
-    hass.data[DOMAIN].pop(entry.entry_id)
-    return True
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        options_update_unsubscriber = hass.data[DOMAIN][entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
+        options_update_unsubscriber()
+        cu = hass.data[DOMAIN][entry.entry_id][DATA_JABLOTRON]
+        cu.shutdown()
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unload_ok
 
 async def options_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 	cu = hass.data[DOMAIN][entry.entry_id][DATA_JABLOTRON]
