@@ -22,12 +22,11 @@ class JablotronEntity(Entity):
 
 	@property
 	def available(self) -> bool:
-		#return self._cu.led_power
-
+		if not self._cu.is_connected:
+			return False
 		if hasattr(self._object,"available"):
 			return self._object.available
-		else:
-			return True
+		return True
 
 	@property
 	def device_info(self) -> Optional[Dict[str, Any]]:

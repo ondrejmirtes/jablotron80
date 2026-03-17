@@ -1518,6 +1518,10 @@ class JA80CentralUnit(object):
 		return self._leds.values()
 	
 	@property
+	def is_connected(self) -> bool:
+		return self._connection.is_connected()
+
+	@property
 	def serial_port(self) -> str:
 #		return  "/dev/hidraw0"
 		return self._connection.device

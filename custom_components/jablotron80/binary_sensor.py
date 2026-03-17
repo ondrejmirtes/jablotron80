@@ -103,9 +103,10 @@ class JablotronDiagnosticEntity(JablotronEntity, BinarySensorEntity):
 
 	@property
 	def available(self) -> bool:
-		# diagnostic entities must always be available —
-		# the fault entity in particular can't go unavailable when there IS a fault
-		return True
+		# diagnostic entities must be available even when the device has a fault —
+		# the fault entity in particular can't go unavailable when there IS a fault.
+		# But they should go unavailable when the serial connection is lost.
+		return self._cu.is_connected
 
 	@property
 	def name(self) -> str:
