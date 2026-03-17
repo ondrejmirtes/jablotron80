@@ -4,6 +4,7 @@ from homeassistant.components.binary_sensor import (
 	BinarySensorEntity,
 	BinarySensorDeviceClass,
 )
+from homeassistant.const import EntityCategory
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
@@ -22,7 +23,7 @@ from .const import (
 )
 from .jablotron import JA80CentralUnit, JablotronDevice,JablotronConstants
 from .jablotronHA import JablotronEntity
-from typing import Optional
+from typing import Any, Dict, Optional
 import logging
 LOGGER = logging.getLogger(__package__)
 
@@ -33,6 +34,12 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 	async_add_entities([JablotronDeviceSensorEntity(led,cu) for led in cu.leds], True)
 	async_add_entities([JablotronDeviceSensorEntity(code,cu) for code in cu.codes], True)
 	async_add_entities([JablotronDeviceSensorEntity(cu.statustext,cu)], True)
+
+	# diagnostic binary sensors per device: battery, tamper, fault
+	devices_with_central = list(cu.devices) + [cu.central_device]
+	async_add_entities([JablotronBatteryEntity(device, cu) for device in devices_with_central], True)
+	async_add_entities([JablotronTamperEntity(device, cu) for device in devices_with_central], True)
+	async_add_entities([JablotronFaultEntity(device, cu) for device in devices_with_central], True)
 
 
 class JablotronDeviceSensorEntity(JablotronEntity,BinarySensorEntity):
@@ -85,5 +92,52 @@ class JablotronDeviceSensorEntity(JablotronEntity,BinarySensorEntity):
 		return None
 
 
+class JablotronDiagnosticEntity(JablotronEntity, BinarySensorEntity):
+	"""Base class for per-device diagnostic binary sensors (battery, tamper, fault)."""
+
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
+	_suffix: str = ""  # override in subclasses
+
+	def __init__(self, device: JablotronDevice, cu: JA80CentralUnit):
+		super().__init__(cu, device)
+
+	@property
+	def available(self) -> bool:
+		# diagnostic entities must always be available —
+		# the fault entity in particular can't go unavailable when there IS a fault
+		return True
+
+	@property
+	def name(self) -> str:
+		return f"{self._object.name} {self._suffix}"
+
+	@property
+	def unique_id(self) -> str:
+		return f"{DOMAIN}.{self._cu.serial_port}.{self._object.id_part}.{self._object._id}.{self._suffix.lower()}"
 
 
+class JablotronBatteryEntity(JablotronDiagnosticEntity):
+	_suffix = "Battery"
+	_attr_device_class = BinarySensorDeviceClass.BATTERY
+
+	@property
+	def is_on(self) -> bool:
+		return self._object.battery_low
+
+
+class JablotronTamperEntity(JablotronDiagnosticEntity):
+	_suffix = "Tamper"
+	_attr_device_class = BinarySensorDeviceClass.TAMPER
+
+	@property
+	def is_on(self) -> bool:
+		return self._object.tampered
+
+
+class JablotronFaultEntity(JablotronDiagnosticEntity):
+	_suffix = "Fault"
+	_attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+	@property
+	def is_on(self) -> bool:
+		return not self._object.available
