@@ -1422,6 +1422,7 @@ class JA80CentralUnit(object):
 		self._active_codes = {}
 		self._codes = {}
 		self._device_query_pending = False
+		self._last_device_query_time = 0.0
 		self._last_state = None
 		self._mode = None
 		self._connection.connect()
@@ -1969,10 +1970,22 @@ class JA80CentralUnit(object):
 		self.central_device.last_event = log
 
 
+	DEVICE_QUERY_COOLDOWN = 30  # minimum seconds between # queries to avoid spamming physical keypads
+
 	def _send_device_query(self)->None:
-		if not self._device_query_pending:
-			self.send_detail_command()
-			
+		if self._device_query_pending:
+			return
+		now = time.monotonic()
+		if now - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
+			return
+		# only query when disarmed — during armed/entry delay the panel is busy
+		# and the keypad beeping from # presses would be especially disruptive
+		if self._last_state is None or not JablotronState.is_disarmed_state(self._last_state):
+			return
+		self._device_query_pending = True
+		self._last_device_query_time = now
+		self.send_detail_command()
+
 	def _confirm_device_query(self)->None:
 		self._device_query_pending = False
 
@@ -2152,8 +2165,7 @@ class JA80CentralUnit(object):
 			if detail == 0x00:
 				# don't send query if we already have "triggered detector" displayed
 				if activity_name not in self.statustext.message or activity_name == self.statustext.message:
-					#self._send_device_query()
-					pass
+					self._send_device_query()
 				else:
 					log = False
 			else:
@@ -2178,9 +2190,7 @@ class JA80CentralUnit(object):
 			activity_name = 'Triggered detector (multiple)'
 			# multiple things are active
 			if detail == 0x00:
-				pass
-				# no details... ask..
-				#self._send_device_query()
+				self._send_device_query()
 			else:
 				self._activate_source(detail)
 				self._confirm_device_query()
