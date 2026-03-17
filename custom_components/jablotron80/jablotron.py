@@ -742,6 +742,8 @@ class JablotronConnection():
 	def read_send_packet_loop(self) -> None:
 		# keep reading bytes untill 0xff which indicates end of packet
 		LOGGER.debug('Loop endlessly reading serial')
+		if not self.is_connected():
+			self.connect()
 		while not self._stop.is_set():
 			try:
 				if not self.is_connected():
@@ -1425,7 +1427,6 @@ class JA80CentralUnit(object):
 		self._last_device_query_time = 0.0
 		self._last_state = None
 		self._mode = None
-		self._connection.connect()
 		self._stop = threading.Event()
 		self._havestate = asyncio.Event() # has the first state message been received
 
