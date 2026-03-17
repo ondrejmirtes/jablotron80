@@ -757,8 +757,9 @@ class JablotronConnection():
 					accepted = False
 					confirmed = False
 					retries = 2 # 2 retries signifies 3 attempts
+					all_keys_sent = False # track if all keys were physically sent to panel
 
-					while retries >= 0 and not (accepted and confirmed):
+					while retries >= 0 and not (accepted and confirmed) and not all_keys_sent:
 						level = logging.INFO
 						for i in range(0,len(send_cmd.code)):
 							if i == len(send_cmd.code)-1:
@@ -772,16 +773,31 @@ class JablotronConnection():
 								self._connection.write(cmd)
 								LOGGER.debug(f'keypress sent, sequence:{i}')
 
+							# mark that all keys have been physically sent to the panel
+							if i == len(send_cmd.code)-1:
+								all_keys_sent = True
+
 							if self.read_until_found(accepted_prefix):
 								LOGGER.debug(f'keypress accepted, sequence:{i}')
 								accepted = True
 							else:
-								if retries == 0:
+								if retries == 0 or all_keys_sent:
 									level = logging.WARN
 
 								LOGGER.log(level, f'no accepted message for sequence:{i} received')
 								accepted = False
 								break # break from for loop into retry loop, has effect of starting full command sequence from scratch
+
+						if all_keys_sent and not accepted:
+							# All keys were physically sent to the panel but the final
+							# confirmation was not received. Do NOT retry — the panel
+							# likely processed the full code already, and resending it
+							# would toggle the arm/disarm state (e.g. disarm then re-arm).
+							LOGGER.warning(f'All keys sent for {send_cmd.name} but final confirmation not received. Skipping retry to avoid toggling arm/disarm state.')
+							send_cmd.confirm(True)
+							confirmed = True
+							self._cmd_q.task_done()
+							break
 
 						if accepted:
 							if send_cmd.complete_prefix is not None:
@@ -790,11 +806,11 @@ class JablotronConnection():
 									LOGGER.info(f"command {send_cmd} completed")
 								else:
 									if retries == 0:
-										level = logging.WARN	
+										level = logging.WARN
 									LOGGER.log(level, f"no completion message found for command {send_cmd}")
 									send_cmd.confirm(False)
 									continue
-									
+
 							send_cmd.confirm(True)
 							confirmed = True
 							if send_cmd.name == 'Details':
