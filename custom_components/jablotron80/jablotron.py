@@ -2039,8 +2039,11 @@ class JA80CentralUnit(object):
 			self.status = JA80CentralUnit.STATUS_NORMAL
 			self._call_zones(function_name="disarm")
 
-			if activity == 0x00:# and not self.led_alarm:
-				# clear active statuses
+			if activity not in (0x10, 0x16):
+				# clear active statuses when the panel is not showing triggered detectors.
+				# Previously this only fired on activity==0x00 (idle), but a persistent
+				# warning (e.g. low battery on a device) keeps activity at 0x08/0x09,
+				# preventing triggers from ever being cleared.
 				self._clear_triggers()
 
 		elif status == JablotronState.ARMED_ABC:
@@ -2113,6 +2116,13 @@ class JA80CentralUnit(object):
 
 		warn = False # should a warning message be logged
 		log = True # should a message be logged at all
+
+		# If a device query is pending but the panel is showing a non-trigger
+		# activity (e.g. battery warning, fault), reset the pending flag.
+		# Otherwise the query mechanism gets stuck forever when a persistent
+		# warning "hijacks" the # key response.
+		if self._device_query_pending and activity not in (0x10, 0x16):
+			self._confirm_device_query()
 
 		if activity == 0x00:
 			activity_name = ''
