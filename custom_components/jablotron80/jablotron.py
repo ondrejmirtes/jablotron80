@@ -1322,8 +1322,8 @@ class JablotronStatusText(JablotronCommon):
 	_message: str = field(default='',init=False)
 
 	@property
-	def active(self) -> str:
-		return self._message != '' or self._message is None
+	def active(self) -> bool:
+		return self._message != '' and self._message is not None
 
 	@property
 	def message(self) -> str:
