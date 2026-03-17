@@ -34,7 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     cu =  JA80CentralUnit(hass, entry.data, entry.options)
     await cu.initialize()
-    
+
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
 		config_entry_id=entry.entry_id,
@@ -43,7 +43,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         model=CABLE_MODELS[entry.data[CABLE_MODEL]],
         manufacturer=MANUFACTURER
 	)
-    
+
+    # Migrate old device identifiers from (DOMAIN, device_id) to
+    # (DOMAIN, "{serial_port}_{device_id}") so that each config entry
+    # gets its own devices instead of merging zones across panels.
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        for ident in device.identifiers:
+            if ident[0] == DOMAIN and isinstance(ident[1], int):
+                new_identifiers = {(DOMAIN, f"{cu.serial_port}_{ident[1]}")}
+                device_registry.async_update_device(
+                    device.id, new_identifiers=new_identifiers
+                )
+                break
+
     hass.data[DOMAIN][entry.entry_id] = {
 		DATA_JABLOTRON: cu,
 	    DATA_OPTIONS_UPDATE_UNSUBSCRIBER: entry.add_update_listener(options_update_listener),

@@ -38,7 +38,7 @@ class JablotronEntity(Entity):
 		name = CENTRAL_UNIT_MODEL
 		if self._object.device_id > 0:
 			name = self._object.name
-		info = {"identifiers": {(DOMAIN, self._object.device_id)},
+		info = {"identifiers": {(DOMAIN, f"{self._cu.serial_port}_{self._object.device_id}")},
 			"name": name,
 			"via_device": (DOMAIN, self._cu.serial_port)}
 		if hasattr(self._object,"model") and not self._object.model is None:
