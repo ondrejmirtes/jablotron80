@@ -1424,6 +1424,7 @@ class JA80CentralUnit(object):
 		self._active_codes = {}
 		self._codes = {}
 		self._device_query_pending = False
+		self._device_query_satisfied_activity = None  # activity value when last query was answered
 		self._last_device_query_time = 0.0
 		self._last_state = None
 		self._mode = None
@@ -1727,6 +1728,8 @@ class JA80CentralUnit(object):
 			#else:
 			device.active = False
 		self._active_devices.clear()
+		self._device_query_satisfied_activity = None
+		self._last_device_query_time = 0.0
 		for code in self._codes.values():
     			#if self.system_mode == JA80CentralUnit.SYSTEM_MODE_UNSPLIT:
 			#    device.deactivate()
@@ -1976,24 +1979,31 @@ class JA80CentralUnit(object):
 		self.central_device.last_event = log
 
 
-	DEVICE_QUERY_COOLDOWN = 30  # minimum seconds between # queries to avoid spamming physical keypads
+	DEVICE_QUERY_COOLDOWN = 30  # seconds — rate-limit for 0x16 (multiple) re-queries
 
-	def _send_device_query(self)->None:
+	def _send_device_query(self, activity: int)->None:
 		if self._device_query_pending:
 			return
-		now = time.monotonic()
-		if now - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
-			return
+		if activity == self._device_query_satisfied_activity:
+			if activity == 0x10:
+				# Single trigger — already identified the device, no more queries needed
+				return
+			# Multiple triggers (0x16) — a new device may have appeared;
+			# allow re-query but rate-limit to avoid keypad spamming
+			if time.monotonic() - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
+				return
 		# only query when disarmed — during armed/entry delay the panel is busy
 		# and the keypad beeping from # presses would be especially disruptive
 		if self._last_state is None or not JablotronState.is_disarmed_state(self._last_state):
 			return
 		self._device_query_pending = True
-		self._last_device_query_time = now
+		self._last_device_query_time = time.monotonic()
 		self.send_detail_command()
 
-	def _confirm_device_query(self)->None:
+	def _confirm_device_query(self, activity: int = None)->None:
 		self._device_query_pending = False
+		if activity is not None:
+			self._device_query_satisfied_activity = activity
 
 	def _process_state(self, data: bytearray, packet_data: str) -> None:
 
@@ -2177,16 +2187,17 @@ class JA80CentralUnit(object):
 		elif activity == 0x10:
 			# permanent trigger during standard (unset) mode, e.g. a door open detector
 			activity_name = 'Triggered detector'
-			# something is active
+			# something is active — single device
 			if detail == 0x00:
 				# don't send query if we already have "triggered detector" displayed
 				if activity_name not in self.statustext.message or activity_name == self.statustext.message:
-					self._send_device_query()
+					self._send_device_query(activity)
 				else:
 					log = False
 			else:
 				self._activate_source(detail)
-				self._confirm_device_query()
+				# Mark 0x10 as satisfied — only one device, and we now know which
+				self._confirm_device_query(activity)
 
 		elif activity == 0x12:
 			activity_name = 'Active output'
@@ -2206,9 +2217,12 @@ class JA80CentralUnit(object):
 			activity_name = 'Triggered detector (multiple)'
 			# multiple things are active
 			if detail == 0x00:
-				self._send_device_query()
+				self._send_device_query(activity)
 			else:
 				self._activate_source(detail)
+				# Don't mark 0x16 as satisfied — there may be more devices
+				# to discover. The pending flag alone prevents concurrent queries,
+				# and we want the next 0x16/detail=0x00 packet to trigger another #.
 				self._confirm_device_query()
 
 		else:
