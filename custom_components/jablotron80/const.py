@@ -1,6 +1,5 @@
 """Jablotron specific constants."""
 import logging
-import sys
 LOGGER = logging.getLogger(__package__)
 
 DOMAIN = "jablotron80"
@@ -39,13 +38,6 @@ DEFAULT_CONFIGURATION_REQUIRE_CODE_TO_ARM = True
 DEFAULT_CONFIGURATION_REQUIRE_CODE_TO_DISARM = True
 DEFAULT_CONFIGURATION_QUIETEN_EXPECTED_WARNINGS = False
 DEFAULT_CONFIGURATION_VERBOSE_CONNECTION_LOGGING = False
-
-LOGGER.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-LOGGER.addHandler(handler)
 
 DEVICE_EMPTY = "empty"
 DEVICE_BUTTON = "button"
