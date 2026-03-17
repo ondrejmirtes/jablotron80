@@ -44,39 +44,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         manufacturer=MANUFACTURER
 	)
 
-    # Migrate old device identifiers so that each config entry gets its
-    # own devices instead of merging zones across panels.
-    # Old formats: (DOMAIN, int) or (DOMAIN, "jablotron_panel_N")
-    # New formats: (DOMAIN, "{serial_port}_{int}") or (DOMAIN, "{serial_port}_panel_{N}")
-    # Also remove stale config entry associations from devices that
-    # belong to a different serial port.
-    serial_prefix = cu.serial_port + "_"
-    for device in list(dr.async_entries_for_config_entry(device_registry, entry.entry_id)):
-        migrated = False
-        for ident in device.identifiers:
-            if ident[0] != DOMAIN:
-                continue
-            val = ident[1]
-            new_val = None
-            if isinstance(val, int):
-                new_val = f"{cu.serial_port}_{val}"
-            elif isinstance(val, str) and val.startswith("jablotron_panel_"):
-                zone = val.removeprefix("jablotron_panel_")
-                new_val = f"{cu.serial_port}_panel_{zone}"
-            elif isinstance(val, str) and not val.startswith(serial_prefix) and val != cu.serial_port:
-                # Device identifier belongs to a different serial port —
-                # remove this config entry's stale association.
-                device_registry.async_update_device(
-                    device.id, remove_config_entry_id=entry.entry_id
-                )
-                migrated = True
-                break
-            if new_val is not None:
-                device_registry.async_update_device(
-                    device.id, new_identifiers={(DOMAIN, new_val)}
-                )
-                migrated = True
-                break
 
     hass.data[DOMAIN][entry.entry_id] = {
 		DATA_JABLOTRON: cu,
