@@ -1463,13 +1463,13 @@ class JA80CentralUnit(object):
 				expected_warning_level = logging.DEBUG
 			else:
 				expected_warning_level = logging.WARN
-		except:
+		except (KeyError, TypeError):
 			pass
 
 		global verbose_connection_logging
 		try:
 			verbose_connection_logging = options[CONFIGURATION_VERBOSE_CONNECTION_LOGGING]
-		except:
+		except (KeyError, TypeError):
 			pass
 
 	async def initialize(self) -> None:
