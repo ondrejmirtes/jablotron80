@@ -2754,8 +2754,7 @@ class JA80CentralUnit(object):
 	def disarm(self,code:str,zone:str=None) -> None:
 		self.send_keypress_sequence(code, b'\xa2')
 		if JablotronState.is_alarm_state(self._last_state):
-			#confirm alarm
-			self.send_detail_command
+			self.send_detail_command()
 		
 	async def processing_loop(self) -> None:
 		previous_record = None
