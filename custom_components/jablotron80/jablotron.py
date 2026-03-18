@@ -737,8 +737,7 @@ class JablotronConnection():
 	def _log_detail(self, log: str):
 
 		if verbose_connection_logging:
-			level = LOGGER.getEffectiveLevel()
-			LOGGER.log(level, log)
+			LOGGER.debug(log)
 
 	def connect(self) -> None:
 		raise NotImplementedError
