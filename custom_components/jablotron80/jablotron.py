@@ -1007,6 +1007,8 @@ class JablotronMessage():
 		# what is this exactly 03 fire alarm, 0D/0C codes section 0E/0C service mode
 		0xe8: TYPE_STATE_DETAIL,
 		0xe9: TYPE_SETTINGS,
+		0x40: TYPE_PING, # JA-82T adapter status
+		0x50: TYPE_PING, # JA-82T adapter status
 		0x80: TYPE_KEYPRESS,
 		0xa0: TYPE_BEEP,
 		0xb3: TYPE_PING,
