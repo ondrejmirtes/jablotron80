@@ -1439,6 +1439,7 @@ class JA80CentralUnit(object):
 		self._device_query_pending = False
 		self._device_query_satisfied_activity = None  # activity value when last query was answered
 		self._last_device_query_time = 0.0
+		self._last_trigger_activity = None  # tracks 0x10/0x16 for transition detection
 		self._last_state = None
 		self._mode = None
 		self._stop = threading.Event()
@@ -2064,12 +2065,33 @@ class JA80CentralUnit(object):
 			self.status = JA80CentralUnit.STATUS_NORMAL
 			self._call_zones(function_name="disarm")
 
-			if activity not in (0x10, 0x16):
-				# clear active statuses when the panel is not showing triggered detectors.
-				# Previously this only fired on activity==0x00 (idle), but a persistent
-				# warning (e.g. low battery on a device) keeps activity at 0x08/0x09,
-				# preventing triggers from ever being cleared.
+			# Only clear triggered devices when the panel is genuinely idle or
+			# showing an activity that proves no detectors are active.
+			# Warning/fault activities (0x06-0x09, 0x14) can coexist with
+			# triggered detectors — a persistent low battery warning keeps
+			# the display at 0x08/0x09 even while a window is open.
+			# Clearing on those activities would instantly undo any trigger
+			# detection from the brief 0x10/0x16 packets.
+			_ACTIVITIES_NO_TRIGGERS = (
+				0x00,  # idle
+				0x01,  # service
+				0x02,  # maintenance
+				0x03,  # enrollment
+				0x0a,  # set/unset
+				0x0b,  # bypass
+				0x0c,  # exit delay
+				0x0d,  # entrance delay
+			)
+			if activity in _ACTIVITIES_NO_TRIGGERS:
 				self._clear_triggers()
+				self._last_trigger_activity = None
+			elif activity == 0x10 and self._last_trigger_activity == 0x16:
+				# Multiple → single: at least one device was deactivated.
+				# Clear so the remaining device gets freshly identified.
+				self._clear_triggers()
+				self._last_trigger_activity = activity
+			elif activity in (0x10, 0x16):
+				self._last_trigger_activity = activity
 
 		elif status == JablotronState.ARMED_ABC:
 			self._call_zones(by, function_name="armed")
@@ -2235,10 +2257,11 @@ class JA80CentralUnit(object):
 				self._send_device_query(activity)
 			else:
 				self._activate_source(detail)
-				# Don't mark 0x16 as satisfied — there may be more devices
-				# to discover. The pending flag alone prevents concurrent queries,
-				# and we want the next 0x16/detail=0x00 packet to trigger another #.
-				self._confirm_device_query()
+				# Mark 0x16 as satisfied. If another device triggers later,
+				# _send_device_query will allow a re-query after the 30s
+				# cooldown (the cooldown only applies when activity==satisfied
+				# and activity!=0x10).
+				self._confirm_device_query(activity)
 
 		else:
 			warn = True
