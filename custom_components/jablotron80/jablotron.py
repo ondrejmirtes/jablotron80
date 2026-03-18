@@ -1978,21 +1978,23 @@ class JA80CentralUnit(object):
 
 	DEVICE_QUERY_COOLDOWN = 30  # seconds — rate-limit for 0x16 (multiple) re-queries
 
-	def _send_device_query(self, activity: int)->None:
+	def _send_device_query(self, activity: int = None)->None:
 		if self._device_query_pending:
 			return
-		if activity == self._device_query_satisfied_activity:
-			if activity == 0x10:
-				# Single trigger — already identified the device, no more queries needed
+		if activity is not None:
+			# Automatic query from state processing — apply anti-spam logic
+			if activity == self._device_query_satisfied_activity:
+				if activity == 0x10:
+					# Single trigger — already identified the device, no more queries needed
+					return
+				# Multiple triggers (0x16) — a new device may have appeared;
+				# allow re-query but rate-limit to avoid keypad spamming
+				if time.monotonic() - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
+					return
+			# only query when disarmed — during armed/entry delay the panel is busy
+			# and the keypad beeping from # presses would be especially disruptive
+			if self._last_state is None or not JablotronState.is_disarmed_state(self._last_state):
 				return
-			# Multiple triggers (0x16) — a new device may have appeared;
-			# allow re-query but rate-limit to avoid keypad spamming
-			if time.monotonic() - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
-				return
-		# only query when disarmed — during armed/entry delay the panel is busy
-		# and the keypad beeping from # presses would be especially disruptive
-		if self._last_state is None or not JablotronState.is_disarmed_state(self._last_state):
-			return
 		self._device_query_pending = True
 		self._last_device_query_time = time.monotonic()
 		self.send_detail_command()
