@@ -771,16 +771,13 @@ class JablotronConnection():
 
 							if not send_cmd.code is None:
 								cmd = self._get_cmd(send_cmd.code[i].to_bytes(1,byteorder='big'))
-								LOGGER.debug(f'Sending keypress, sequence:{i}')
 								self._connection.write(cmd)
-								LOGGER.debug(f'keypress sent, sequence:{i}')
 
 							# mark that all keys have been physically sent to the panel
 							if i == len(send_cmd.code)-1:
 								all_keys_sent = True
 
 							if self.read_until_found(accepted_prefix):
-								LOGGER.debug(f'keypress accepted, sequence:{i}')
 								accepted = True
 							else:
 								if retries == 0 or all_keys_sent:
@@ -2627,8 +2624,6 @@ class JA80CentralUnit(object):
 	def send_keypress_sequence(self, key_sequence: str, accepted_prefix: bytes, complete_prefix: bytes = None) -> None:
 
 		value = b''
-
-		LOGGER.warning(f'Pressing keys: {key_sequence}')
 
 		if JablotronSettings.HIDE_KEY_PRESS:
 			name = "*HIDDEN*"
