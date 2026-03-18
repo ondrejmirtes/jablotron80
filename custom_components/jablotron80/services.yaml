@@ -1,0 +1,10 @@
+enter_service_mode:
+  name: Enter Service Mode
+  description: Enter the panel's service mode using the service code.
+  fields:
+    code:
+      name: Service Code
+      description: The 4-digit service code (factory default 8080).
+      required: true
+      selector:
+        text:

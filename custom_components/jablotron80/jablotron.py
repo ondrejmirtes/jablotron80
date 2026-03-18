@@ -1306,6 +1306,19 @@ class JablotronState():
 class JablotronButton(JablotronCommon):
 	pass
 
+@dataclass
+class JablotronModeSelect(JablotronCommon):
+	_value: str = field(default='Operating',init=False)
+
+	@property
+	def value(self) -> str:
+		return self._value
+
+	@value.setter
+	@log_change
+	def value(self, val: str) -> None:
+		self._value = val
+
 class JablotronLed(JablotronCommon):
 	pass
 
@@ -1445,6 +1458,14 @@ class JA80CentralUnit(object):
 		self._query = JablotronButton(4)
 		self._query.name = f'{CENTRAL_UNIT_MODEL} Query Button'
 		self._query.type = "button"
+
+		self._mode_select = JablotronModeSelect(5)
+		self._mode_select.name = f'{CENTRAL_UNIT_MODEL} Mode'
+		self._mode_select.type = "mode"
+
+		self._sync_clock = JablotronButton(6)
+		self._sync_clock.name = f'{CENTRAL_UNIT_MODEL} Sync Clock'
+		self._sync_clock.type = "button"
 
 		self._active_devices = {}
 		self._active_codes = {}
@@ -1627,6 +1648,14 @@ class JA80CentralUnit(object):
 	@property
 	def query(self) -> JablotronButton:
 		return self._query
+
+	@property
+	def mode_select(self) -> JablotronModeSelect:
+		return self._mode_select
+
+	@property
+	def sync_clock_button(self) -> JablotronButton:
+		return self._sync_clock
 
 	@property
 	def system_status(self) -> str:
@@ -2133,6 +2162,7 @@ class JA80CentralUnit(object):
 
 		elif status in JablotronState.STATES_DISARMED:
 			self.status = JA80CentralUnit.STATUS_NORMAL
+			self._mode_select.value = 'Operating'
 			self._call_zones(function_name="disarm")
 
 			# Only clear triggered devices when the panel is genuinely idle or
@@ -2213,10 +2243,12 @@ class JA80CentralUnit(object):
 		elif JablotronState.is_service_state(status):
 			state_text = 'Service'
 			self.status = JA80CentralUnit.STATUS_SERVICE
+			self._mode_select.value = 'Service'
 			self.notify_service()
 		elif JablotronState.is_maintenance_state(status):
-			state_text = 'Maintenence'
+			state_text = 'Maintenance'
 			self.status = JA80CentralUnit.STATUS_MAINTENANCE
+			self._mode_select.value = 'Maintenance'
 			self.notify_service()
 		elif JablotronState.is_exit_delay_state(status):
 			state_text = 'Exit delay'
@@ -2729,6 +2761,16 @@ class JA80CentralUnit(object):
 			self.send_return_mode_command()
 		else:
 			LOGGER.warning(f'Trying to enter normal mode but state is {self.last_state}')
+
+	def sync_clock(self) -> None:
+		"""Send the current time to the panel. Requires service or maintenance mode."""
+		if not JablotronState.is_elevated_state(self._last_state):
+			LOGGER.error('Cannot sync clock: panel is not in service or maintenance mode')
+			return
+		now = datetime.datetime.now()
+		# Per manual: 4 hh mm DD MM YY
+		time_seq = f"4{now.hour:02d}{now.minute:02d}{now.day:02d}{now.month:02d}{now.year % 100:02d}"
+		self.send_keypress_sequence(time_seq, b'\xa1')
 
 	async def read_settings(self) -> bool:
 		if self.enter_elevated_mode(self._master_code):
