@@ -1867,9 +1867,8 @@ class JA80CentralUnit(object):
 			#if source == 0x0:
 			#	event_name += ", Control panel"
 		elif event_type == 0x06:
-			event_name = "Tampering key pad (wrong code?)"
+			event_name = "Wrong codes entered"
 			warn = True
-			self._device_tampered(source)
 			self._activate_source(source)
 		elif event_type == 0x07:
 			event_name = "Fault"
@@ -1905,19 +1904,30 @@ class JA80CentralUnit(object):
 			event_name = "Control panel power O.K."
 			self._clear_source(source)			
 		elif event_type == 0x11:
-			event_name = "Discharged battery"
+			event_name = "Low battery in device"
 			warn = True
 			self._device_battery_low(source)
+		elif event_type == 0x12:
+			event_name = "Communicator fault"
+			warn = True
+		elif event_type == 0x13:
+			event_name = "Communicator is working"
 		elif event_type == 0x14:
 			event_name = "Backup battery fault"
 			warn = True
 			self._device_battery_low(source)
-			self._activate_source(source)	
-		elif event_type == 0x17:
-			event_name = "24 hours" # for example panic alarm
-			# 24 hours code=source
-			source  = self._get_source(source)
 			self._activate_source(source)
+		elif event_type == 0x15:
+			event_name = "Backup battery O.K."
+		elif event_type == 0x16:
+			event_name = "Periphery activated"
+			self._activate_source(source)
+		elif event_type == 0x17:
+			event_name = "Alarm 24h"
+			self._activate_source(source)
+		elif event_type == 0x18:
+			event_name = "RF jamming detected"
+			warn = True
 		elif event_type == 0x1a:
 			event_name = "Setting Zone A"
 			self._activate_code(source)
@@ -1926,6 +1936,25 @@ class JA80CentralUnit(object):
 			event_name = "Setting Zone B"
 			self._activate_code(source)
 			self._call_zone(2,by = source,function_name="arming")
+		elif event_type == 0x1c:
+			event_name = "Unsetting Zone A"
+			self._clear_code(source)
+			self._call_zone(1,by = source,function_name="disarm")
+		elif event_type == 0x1d:
+			event_name = "Unsetting Zone B"
+			self._clear_code(source)
+			self._call_zone(2,by = source,function_name="disarm")
+		elif event_type == 0x1e:
+			event_name = "Setting Zone C"
+			self._activate_code(source)
+			self._call_zone(3,by = source,function_name="arming")
+		elif event_type == 0x1f:
+			event_name = "Unsetting Zone C"
+			self._clear_code(source)
+			self._call_zone(3,by = source,function_name="disarm")
+		elif event_type == 0x20:
+			event_name = "Next-delay one Alarm"
+			self._activate_source(source)
 		elif event_type == 0x21:
 			event_name = "Partial Set A,B"
 			self._activate_code(source)
@@ -1937,6 +1966,8 @@ class JA80CentralUnit(object):
 			event_name = "Enter Elevated Mode"
 		elif event_type == 0x42:
 			event_name = "Exit Elevated Mode"
+		elif event_type == 0x43:
+			event_name = "Alarm end"
 		elif event_type == 0x44:
 			event_name = "Data sent to ARC"
 		elif event_type == 0x4e:
@@ -1959,6 +1990,20 @@ class JA80CentralUnit(object):
 		elif event_type == 0x52:
 			event_name = "All devices' power O.K."
 			self._clear_battery()
+		elif event_type == 0x53:
+			event_name = "No connection"
+			warn = True
+		elif event_type == 0x54:
+			event_name = "Connection renewal"
+		elif event_type == 0x55:
+			event_name = "Master code reset (1234)"
+			warn = True
+		elif event_type == 0x56:
+			event_name = "Master code changed"
+			warn = True
+		elif event_type == 0x59:
+			event_name = "AC fault longer than 30 minutes"
+			warn = True
 		elif event_type == 0x5a:
 			event_name = "Unconfirmed alarm"
 			if not self._get_source(source).is_central_unit:
@@ -1978,6 +2023,15 @@ class JA80CentralUnit(object):
 			event_name = "PGY On"
 		elif event_type == 0x5f:
 			event_name = "PGY Off"
+		elif event_type == 0x60:
+			event_name = "Engineer reset"
+			warn = True
+		elif event_type == 0x61:
+			event_name = "Engineer reset cleared"
+		elif event_type == 0x62:
+			event_name = "Date/time changed"
+		elif event_type == 0x63:
+			event_name = "Set with bypass"
 
 		else:
 			LOGGER.error(f'Unknown timestamp event data={packet_data}')
@@ -2222,6 +2276,10 @@ class JA80CentralUnit(object):
 		elif activity == 0x0e:
 			activity_name = 'Test OK'
 
+		elif activity == 0x0f:
+			warn = True
+			activity_name = 'Test error'
+
 		elif activity == 0x10:
 			# permanent trigger during standard (unset) mode, e.g. a door open detector
 			activity_name = 'Triggered detector'
@@ -2236,6 +2294,9 @@ class JA80CentralUnit(object):
 				self._activate_source(detail)
 				# Mark 0x10 as satisfied — only one device, and we now know which
 				self._confirm_device_query(activity)
+
+		elif activity == 0x11:
+			activity_name = 'Signal quality'
 
 		elif activity == 0x12:
 			activity_name = 'Active output'
@@ -2263,6 +2324,15 @@ class JA80CentralUnit(object):
 				# cooldown (the cooldown only applies when activity==satisfied
 				# and activity!=0x10).
 				self._confirm_device_query(activity)
+
+		elif activity == 0x15:
+			activity_name = 'Edit text'
+
+		elif activity == 0x17:
+			activity_name = 'Annual check'
+
+		elif activity == 0x19:
+			activity_name = 'Codes management'
 
 		else:
 			warn = True
