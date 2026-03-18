@@ -1513,6 +1513,9 @@ class JA80CentralUnit(object):
 		self._io_executor = ThreadPoolExecutor(max_workers=1)
 		_loop.run_in_executor(self._io_executor, self._connection.read_send_packet_loop)
 		await asyncio.wait_for(self._havestate.wait(), 20)
+		# Query the panel to discover persistent warnings (e.g. low battery)
+		# that are only visible when the panel cycles through its status items.
+		self.send_detail_command()
 		LOGGER.info(f"initialization done.")
 
 		
