@@ -8,7 +8,6 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import serial
-import crccheck
 
 from custom_components.jablotron80.const import DEVICE_CONTROL_PANEL
 LOGGER = logging.getLogger(__package__)
@@ -1099,32 +1098,32 @@ class JablotronMessage():
 		return len(record) == JablotronMessage.get_length(main_type,record)
 
 	@staticmethod
-	def check_crc(packet: bytes) -> bool:
+	def _checksum(msg: bytes) -> int:
+		"""Compute the Jablotron checksum.
 
+		When computed over the full message (including the CRC byte,
+		excluding the 0xFF terminator), a valid packet yields 0.
+		"""
+		s = 0x7f
+		for byte in msg:
+			for _ in range(8):
+				s <<= 1
+				if (byte & 0x80) == 0x80:
+					s += 1
+				if (s & 0x80) == 0x80:
+					s ^= 0xa3
+				byte <<= 1
+		return s & 0xff
+
+	@staticmethod
+	def check_crc(packet: bytes) -> bool:
 		length = len(packet)
 
 		if length <= 2:
-			LOGGER.debug('Short packet, no CRC to check')
 			return True
 
-		assert packet[length-1] == 0xff
-		expected_checksum = packet[length-2]
-		data = packet[:length-2]
-
-		# first attempt to check CRC with one algo
-		crcchecker = crccheck.crc.Crc(8, 70, initvalue=49, xor_output=0, reflect_input=False, reflect_output=False)
-		checksum = crcchecker.calc(data)
-
-		# crc is always < 0x7f, probably dropped top bit because otherwise could be seen as end of packet (0xff). However have verified it is not an CRC7 algo!
-		if not checksum & 0x7f == expected_checksum:
-			# second attempt to check CRC with second algo, don't know why 2 different CRC algs required..... probabyl incorrect, but will see with more data, perhaps the xor_output value is derived from somewhere else?
-			crcchecker = crccheck.crc.Crc(8, 70, initvalue=49, xor_output=35, reflect_input=False, reflect_output=False)
-			checksum = crcchecker.calc(data)
-
-			if not checksum & 0x7f == expected_checksum:
-				return False
-
-		return True
+		# Run checksum over everything except the 0xFF terminator
+		return JablotronMessage._checksum(packet[:length-1]) == 0
 	
 	@staticmethod
 	def get_message_type_from_record(record,packet_data: bytes) -> str:
