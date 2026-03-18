@@ -913,7 +913,8 @@ class JablotronConnectionSerial(JablotronConnection):
 											baudrate=9600,
 											parity=serial.PARITY_NONE,
 											bytesize=serial.EIGHTBITS,
-											dsrdtr=True,# stopbits=serial.STOPBITS_ONE
+											stopbits=serial.STOPBITS_TWO,
+												dsrdtr=True,
 											timeout=1)
 				LOGGER.info("Connection established successfully.")
 			except serial.SerialException as ex:
