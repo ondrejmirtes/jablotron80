@@ -933,6 +933,17 @@ class JablotronConnectionSerial(JablotronConnection):
 				self.reconnect()
 				self._connection.read_until(b'\xff') # throw away first record as will be corrupt
 
+		# Reassemble split state messages: a spurious 0xFF can split a 10-byte
+		# state message into a lone "ED FF" followed by the 9-byte body.
+		# When we see "ED FF", read the next packet and prepend the 0xED.
+		if data == b'\xed\xff':
+			rest = self._connection.read_until(b'\xff')
+			if rest:
+				data = b'\xed' + rest
+				self._log_detail(f'reassembled split state: {format_packet(data)}')
+			else:
+				self._log_detail(f'received lone ed ff, no continuation')
+
 		self._log_detail(f'received record: {format_packet(data)}')
 		ret_val.append(data)
 		return ret_val
@@ -1023,8 +1034,6 @@ class JablotronMessage():
 		# what is this exactly 03 fire alarm, 0D/0C codes section 0E/0C service mode
 		0xe8: TYPE_STATE_DETAIL,
 		0xe9: TYPE_SETTINGS,
-		0x40: TYPE_PING, # JA-82T adapter status
-		0x50: TYPE_PING, # JA-82T adapter status
 		0x80: TYPE_KEYPRESS,
 		0xa0: TYPE_BEEP,
 		0xb3: TYPE_PING,
@@ -1159,7 +1168,11 @@ class JablotronMessage():
 		   # LOGGER.error('Error determining msg type from buffer: %s', ex)
 			#  msg type is still none so next call will work
 		if message_type is None:
-			LOGGER.log(expected_warning_level, f'Unknown message type {hex(record[0])} with data {packet_data} received')
+			if record[0] in (0x40, 0x50):
+				# JA-82T adapter status messages — variable length, silently ignore
+				pass
+			else:
+				LOGGER.log(expected_warning_level, f'Unknown message type {hex(record[0])} with data {packet_data} received')
 		else:
 			if not JablotronMessage.check_crc(record):
 				LOGGER.log(expected_warning_level, f'Invalid CRC for {packet_data}')
