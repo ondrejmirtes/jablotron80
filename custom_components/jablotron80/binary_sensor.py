@@ -89,6 +89,12 @@ class JablotronDeviceSensorEntity(JablotronEntity,BinarySensorEntity):
 		if self._object.type == DEVICE_SMOKE_DETECTOR:
 			return BinarySensorDeviceClass.SMOKE
 
+		if self._object.type == DEVICE_GLASS_BREAK_DETECTOR:
+			return BinarySensorDeviceClass.VIBRATION
+
+		if self._object.type == DEVICE_SIREN_INDOOR:
+			return BinarySensorDeviceClass.SOUND
+
 		return None
 
 

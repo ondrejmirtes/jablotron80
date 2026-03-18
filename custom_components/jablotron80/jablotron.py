@@ -430,8 +430,23 @@ class JablotronDevice(JablotronCommon):
 
 	@property
 	def is_keyfob(self) -> bool:
-		return self.model == "RC-86" \
-			or self.model == "RC-86 (80)"
+		return self.model in ("RC-86", "RC-86 (80)", "RC-80", "RC-82", "RC-85", "RC-87", "RC-88", "RC-89")
+
+	@property
+	def is_smoke(self) -> bool:
+		return self.model in ("JA-80S", "JA-85B", "JA-85ST")
+
+	@property
+	def is_glass_break(self) -> bool:
+		return self.model == "JA-82SH"
+
+	@property
+	def is_flood(self) -> bool:
+		return self.model == "JA-80Z"
+
+	@property
+	def is_gas(self) -> bool:
+		return self.model == "JA-80G"
 
 	@property
 	def is_central_unit(self) -> bool:
@@ -2345,37 +2360,26 @@ class JA80CentralUnit(object):
 						map(lambda x: hex(x)[2:], data[5:11]))
 					serial_int_string = int(serial_hex_string, 16)
 					device.serial_number = f'{serial_int_string:08d}'
-					if data[5:7] == b'\x04\x08':
-						device.model = 'JA-81F' # wireless keypad
-
-					if data[5:7] == b'\x07\x0e':
-						device.model = 'JA-80W' # motion
-
-					if data[5:7] == b'\x06\x0e':
-						device.model = 'JA-86P' # dual band motion
-
-					if data[5:7] == b'\x05\x00':
-						device.model = 'JA-80A' # external siren
-						
-					if data[5:7] == b'\x08\x01' \
-						or data[5:7] == b'\x08\x03' \
-						or data[5:7] == b'\x09\x01' \
-						or data[5:7] == b'\x09\x03':
-						device.model = 'RC-86' # fob
-
-					if data[5:7] == b'\x05\x04':
-						device.model = 'JA-84P' # pir camera
-
-					if data[5:7] == b'\x01\x01':
-						device.model = 'JA-80S' # smoke
-
-					if data[5:7] == b'\x01\x04':
-						device.model = 'JA-82M' # magnetic contact
-
-					if data[5:7] == b'\x05\x08' \
-						or data[5:7] == b'\x05\x09':
-						device.model = 'JA-80L' # wireless intenal siren
-
+					prefix = bytes(data[5:7])
+					_SERIAL_PREFIX_MODELS = {
+						b'\x01\x01': 'JA-80S',   # smoke detector
+						b'\x01\x04': 'JA-82M',   # magnetic contact
+						b'\x01\x06': 'JA-83M',   # magnetic contact
+						b'\x02\x04': 'JA-82SH',  # shock detector
+						b'\x03\x0e': 'JA-85P',   # PIR motion
+						b'\x04\x08': 'JA-81F',   # wireless keypad
+						b'\x05\x00': 'JA-80A',   # outdoor siren
+						b'\x05\x04': 'JA-84P',   # PIR camera
+						b'\x05\x08': 'JA-80L',   # indoor siren
+						b'\x05\x09': 'JA-80L',   # indoor siren (variant)
+						b'\x06\x0e': 'JA-86P',   # dual-band PIR
+						b'\x07\x0e': 'JA-80W',   # PIR wide angle
+						b'\x08\x01': 'RC-86',    # keyfob
+						b'\x08\x03': 'RC-86',    # keyfob (variant)
+						b'\x09\x01': 'RC-86',    # keyfob (variant)
+						b'\x09\x03': 'RC-86',    # keyfob (variant)
+					}
+					device.model = _SERIAL_PREFIX_MODELS.get(prefix)
 					device.manufacturer = MANUFACTURER
 				else:
 					device.model = None

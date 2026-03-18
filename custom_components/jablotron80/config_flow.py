@@ -165,9 +165,9 @@ class Jablotron80ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 			LOGGER.debug(f'{device.id}')
 
-			if device.is_keypad: 
+			if device.is_keypad:
 				default_device = DEVICES[DEVICE_KEYPAD]
-			elif device.reaction == JablotronConstants.REACTION_FIRE_ALARM:
+			elif device.is_smoke or device.reaction == JablotronConstants.REACTION_FIRE_ALARM:
 				default_device = DEVICES[DEVICE_SMOKE_DETECTOR]
 			elif device.is_motion:
 				default_device = DEVICES[DEVICE_MOTION_DETECTOR]
@@ -181,6 +181,12 @@ class Jablotron80ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				default_device = DEVICES[DEVICE_SIREN_INDOOR]
 			elif device.is_door:
 				default_device = DEVICES[DEVICE_DOOR_OPENING_DETECTOR]
+			elif device.is_glass_break:
+				default_device = DEVICES[DEVICE_GLASS_BREAK_DETECTOR]
+			elif device.is_flood:
+				default_device = DEVICES[DEVICE_FLOOD_DETECTOR]
+			elif device.is_gas:
+				default_device = DEVICES[DEVICE_GAS_DETECTOR]
 			else:
 				default_device = DEVICES[DEVICE_OTHER]
 			fields[vol.Required("device_{:03}_type".format(device.id),default=default_device)] = vol.In(list(DEVICES.values()))
