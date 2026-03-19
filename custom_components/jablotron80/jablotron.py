@@ -801,11 +801,13 @@ class JablotronConnection():
 								break # break from for loop into retry loop, has effect of starting full command sequence from scratch
 
 						if all_keys_sent and not accepted:
-							# All keys were physically sent to the panel but the final
-							# confirmation was not received. Do NOT retry — the panel
-							# likely processed the full code already, and resending it
-							# would toggle the arm/disarm state (e.g. disarm then re-arm).
-							LOGGER.warning(f'All keys sent for {send_cmd.name} but final confirmation not received. Skipping retry to avoid toggling arm/disarm state.')
+							# All keys were physically sent but the final confirmation
+							# was not received.  For state-toggling commands (arm/disarm
+							# codes) do NOT retry — resending would toggle the state.
+							# For harmless commands like Details ('#') just move on
+							# quietly since the panel likely processed it.
+							if send_cmd.name != 'Details':
+								LOGGER.warning(f'All keys sent for {send_cmd.name} but final confirmation not received. Skipping retry to avoid toggling arm/disarm state.')
 							send_cmd.confirm(True)
 							confirmed = True
 							self._cmd_q.task_done()
@@ -1788,7 +1790,9 @@ class JA80CentralUnit(object):
 			device.active = False
 		self._active_devices.clear()
 		self._device_query_satisfied_activity = None
-		self._last_device_query_time = 0.0
+		# Do NOT reset _last_device_query_time here — the cooldown must
+		# survive trigger clears to prevent '#' key spamming when the panel
+		# briefly cycles through idle (0x00) between detector displays.
 		for code in self._codes.values():
     			#if self.system_mode == JA80CentralUnit.SYSTEM_MODE_UNSPLIT:
 			#    device.deactivate()
