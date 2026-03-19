@@ -1536,7 +1536,7 @@ class JA80CentralUnit(object):
 		await asyncio.wait_for(self._havestate.wait(), 20)
 		# Query the panel to discover persistent warnings (e.g. low battery)
 		# that are only visible when the panel cycles through its status items.
-		self.send_detail_command()
+		self._send_device_query()
 		LOGGER.info(f"initialization done.")
 
 		
@@ -2098,15 +2098,13 @@ class JA80CentralUnit(object):
 		if self._device_query_pending:
 			return
 		if activity is not None:
-			# Automatic query from state processing — apply anti-spam logic
-			if activity == self._device_query_satisfied_activity:
-				if activity == 0x10:
-					# Single trigger — already identified the device, no more queries needed
-					return
-				# Multiple triggers (0x16) — a new device may have appeared;
-				# allow re-query but rate-limit to avoid keypad spamming
-				if time.monotonic() - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
-					return
+			# Single trigger already identified — no more queries needed
+			if activity == 0x10 and activity == self._device_query_satisfied_activity:
+				return
+			# Rate-limit ALL automatic queries (except the very first) to avoid
+			# keypad spamming when multiple detectors cycle with other status items
+			if self._last_device_query_time > 0 and time.monotonic() - self._last_device_query_time < self.DEVICE_QUERY_COOLDOWN:
+				return
 			# only query when disarmed — during armed/entry delay the panel is busy
 			# and the keypad beeping from # presses would be especially disruptive
 			if self._last_state is None or not JablotronState.is_disarmed_state(self._last_state):
