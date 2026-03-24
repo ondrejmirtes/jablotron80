@@ -607,8 +607,10 @@ class JablotronZone(JablotronCommon):
 		self.status = JablotronZone.STATUS_ARMING
 
 		
-	@check_active    
+	@check_active
 	def entering(self,by: Optional[JablotronDevice]) -> None:
+		if self._status == JablotronZone.STATUS_DISARMING:
+			return
 		if not by is None:
 			self.by = by
 		self.status = JablotronZone.STATUS_ENTRY_DELAY
